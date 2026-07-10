@@ -101,16 +101,21 @@ So the dashboard and recovery queue have something to show during judging:
 
 ## Step 6 — Verify the live deployment
 
-From your machine:
+From your machine, run **either** verifier — both drive the whole lifecycle against the live
+service (create → checkpoint → fail → discover → claim → resume → checkpoint → complete) and check
+the audit trail and security headers. Both end with `failed: 0`.
 
 ```bash
 cd "C:/Users/Sarthak/OneDrive/Documents/NandaHackRecoveryBeacon"
+
+# Option A — Python (no extra tools; uses the backend venv):
+backend/.venv/Scripts/python.exe scripts/verify_deployment.py https://nanda-recovery-beacon-api.onrender.com
+
+# Option B — bash (requires jq):
 bash scripts/verify_deployment.sh https://nanda-recovery-beacon-api.onrender.com
 ```
 
-This drives the whole lifecycle against the live service — create → checkpoint → fail → discover →
-claim → resume → checkpoint → complete — and checks the audit trail and security headers. It should
-end with `failed: 0`.
+If the API runs with `DEMO_MODE=false`, pass a key as the second argument.
 
 Then open the endpoints a judge will check:
 
