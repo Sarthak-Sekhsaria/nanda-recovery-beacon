@@ -16,7 +16,7 @@ services:
     name: nanda-recovery-beacon-api
     runtime: python
     plan: free
-    region: oregon
+    region: virginia # co-located with the Neon database in AWS us-east-1 (N. Virginia)
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -50,7 +50,7 @@ services:
     name: nanda-recovery-beacon-dashboard
     runtime: node
     plan: free
-    region: oregon
+    region: virginia # same region as the API and the database
     rootDir: frontend
     buildCommand: npm ci && npm run build
     startCommand: npm run start

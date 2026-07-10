@@ -11,7 +11,9 @@ The same Neon database is used for the test run and for production — tests liv
 ## Step 1 — Create the Neon database (≈2 min)
 
 1. Go to <https://neon.tech> and sign in (GitHub sign-in is fine).
-2. **Create a project.** Name it `recovery-beacon`. Any region.
+2. **Create a project.** Name it `recovery-beacon`. Set the region to **AWS US East (N. Virginia)**
+   so the database sits in the same region as the Render services (`render.yaml` deploys to
+   `virginia`). Co-locating the app and the database keeps query latency low.
 3. On the project dashboard, find **Connection string** and copy it. It looks like:
 
    ```
