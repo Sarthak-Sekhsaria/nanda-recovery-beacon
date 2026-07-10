@@ -1,0 +1,27 @@
+# Build context for the backend image (built from the repo root).
+# Keep SKILL.md and references/ — the backend Dockerfile COPYs them.
+
+# Python
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.egg-info
+
+# Node / the frontend has its own build with its own context
+frontend
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+
+# VCS / CI / local
+.git
+.github
+.gitignore
+**/.env
+**/.env.local
+!.env.example
+*.log
+.claude

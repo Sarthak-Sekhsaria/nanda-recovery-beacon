@@ -1,0 +1,2 @@
+# Next.js needs public/ to exist for the standalone Docker build.
+# No static assets yet; this keeps the directory tracked in git.
