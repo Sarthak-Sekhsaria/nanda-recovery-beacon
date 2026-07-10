@@ -1,0 +1,68 @@
+# Render Blueprint. Deploys the API and the dashboard from this repository.
+#
+#   1. Push this repository to GitHub.
+#   2. Create a free PostgreSQL database at https://neon.tech and copy its connection string.
+#   3. In Render: New -> Blueprint -> pick this repo.
+#   4. Paste the Neon connection string when Render prompts for DATABASE_URL.
+#   5. After the first deploy, set PUBLIC_BASE_URL on the API service to the URL Render assigned,
+#      and BEACON_API_URL on the dashboard to that same URL. Redeploy both.
+#
+# Free instances sleep after 15 minutes of inactivity. The first request after a sleep takes
+# ~30 seconds. Failure detection still works: a sweep runs on wake, and every read of
+# /recoverable-workflows triggers an advisory-lock-guarded sweep.
+
+services:
+  - type: web
+    name: nanda-recovery-beacon-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string in the Render dashboard
+      - key: ENVIRONMENT
+        value: production
+      - key: PUBLIC_BASE_URL
+        sync: false # set to https://nanda-recovery-beacon-api.onrender.com after first deploy
+      - key: SKILL_MD_PATH
+        value: ../SKILL.md
+      - key: DEMO_MODE
+        value: "true" # public demo: judges can curl the API without a key. Set false for real use.
+      - key: RUN_REAPER_IN_API
+        value: "true" # Render free plan has no background workers
+      - key: REAPER_INTERVAL_SECONDS
+        value: "20"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RATE_LIMIT_REQUESTS
+        value: "120"
+      - key: CORS_ALLOW_ORIGINS
+        value: "*"
+
+  - type: web
+    name: nanda-recovery-beacon-dashboard
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
+      # Set both to the API service's public URL after its first deploy, e.g.
+      #   https://nanda-recovery-beacon-api.onrender.com
+      - key: BEACON_API_URL
+        sync: false # server-side only: the dashboard proxies API calls through Next.js
+      - key: NEXT_PUBLIC_BEACON_PUBLIC_URL
+        sync: false # shown to visitors on the dashboard's API page
+      - key: BEACON_API_KEY
+        sync: false # optional: only needed when the API has DEMO_MODE=false

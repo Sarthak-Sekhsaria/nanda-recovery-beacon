@@ -1,0 +1,68 @@
+# Local development stack: PostgreSQL + API + reaper worker + dashboard.
+# Production runs on Render + Neon; see README.md.
+#
+#   docker compose up --build
+#   open http://localhost:3000   (dashboard)
+#   open http://localhost:8000/docs
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: beacon
+      POSTGRES_PASSWORD: beacon
+      POSTGRES_DB: beacon
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beacon -d beacon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://beacon:beacon@db:5432/beacon
+      PUBLIC_BASE_URL: http://localhost:8000
+      ENVIRONMENT: development
+      DEMO_MODE: "true"
+      RUN_REAPER_IN_API: "false"   # the dedicated worker below does it
+      CORS_ALLOW_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "app.reaper", "--loop"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://beacon:beacon@db:5432/beacon
+      REAPER_INTERVAL_SECONDS: "10"
+    depends_on:
+      api:
+        condition: service_started
+
+  dashboard:
+    build:
+      context: ./frontend
+    environment:
+      BEACON_API_URL: http://api:8000
+      NEXT_PUBLIC_BEACON_PUBLIC_URL: http://localhost:8000
+      # No BEACON_API_KEY needed while the API runs in DEMO_MODE.
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  postgres-data:

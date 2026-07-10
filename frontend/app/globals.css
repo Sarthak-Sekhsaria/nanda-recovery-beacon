@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-base-950 text-ink-200 antialiased;
+    background-image:
+      radial-gradient(60rem 40rem at 80% -10%, rgba(56, 189, 248, 0.06), transparent),
+      radial-gradient(50rem 30rem at 0% 0%, rgba(249, 115, 22, 0.05), transparent);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-sky-500/30 text-ink-100;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-sky-400/60 ring-offset-2 ring-offset-base-950;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-base-700/70 bg-base-900/70 shadow-panel backdrop-blur-sm;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400;
+  }
+
+  .link {
+    @apply text-sky-300 underline decoration-sky-300/30 underline-offset-4 transition hover:decoration-sky-300;
+  }
+
+  .kbd {
+    @apply rounded border border-base-600 bg-base-800 px-1.5 py-0.5 font-mono text-[11px] text-ink-300;
+  }
+}
+
+/* SKILL.md rendering */
+.markdown {
+  @apply text-[15px] leading-7 text-ink-200;
+}
+.markdown h1 {
+  @apply mb-4 mt-10 border-b border-base-700 pb-3 text-2xl font-semibold text-ink-100;
+}
+.markdown h2 {
+  @apply mb-3 mt-9 text-xl font-semibold text-ink-100;
+}
+.markdown h3 {
+  @apply mb-2 mt-7 text-base font-semibold text-ink-100;
+}
+.markdown p {
+  @apply my-3;
+}
+.markdown ul {
+  @apply my-3 list-disc space-y-1 pl-6;
+}
+.markdown ol {
+  @apply my-3 list-decimal space-y-1 pl-6;
+}
+.markdown a {
+  @apply text-sky-300 underline underline-offset-4;
+}
+.markdown code {
+  @apply rounded border border-base-700 bg-base-850 px-1.5 py-0.5 font-mono text-[13px] text-orange-200;
+}
+.markdown pre {
+  @apply my-4 overflow-x-auto rounded-lg border border-base-700 bg-base-950 p-4;
+}
+.markdown pre code {
+  @apply border-0 bg-transparent p-0 text-[13px] text-ink-200;
+}
+.markdown blockquote {
+  @apply my-4 border-l-2 border-orange-500/50 pl-4 text-ink-300;
+}
+.markdown table {
+  @apply my-4 w-full border-collapse text-sm;
+}
+.markdown th {
+  @apply border border-base-700 bg-base-850 px-3 py-2 text-left font-semibold text-ink-100;
+}
+.markdown td {
+  @apply border border-base-700 px-3 py-2 align-top;
+}
+.markdown hr {
+  @apply my-8 border-base-700;
+}
+.markdown input[type="checkbox"] {
+  @apply mr-2 align-middle;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  @apply h-2 w-2;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-base-700;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-base-600;
+}
