@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import InternalError, ProgrammingError
+from sqlalchemy.exc import DBAPIError
 
 from tests.conftest import GOOD_CHECKPOINT, create_workflow, error_code
+
+# The append-only trigger raises with SQLSTATE 'restrict_violation' (class 23), which
+# SQLAlchemy surfaces as IntegrityError -- a subclass of DBAPIError. Catch the base so
+# the assertion does not depend on the exact SQLSTATE-to-exception mapping.
 
 
 def _checkpoint(parent_version: int, **overrides) -> dict:
@@ -56,7 +60,7 @@ def test_checkpoints_are_immutable_at_the_database_level(client, db):
     workflow = create_workflow(client)
     wid = workflow["id"]
 
-    with pytest.raises((InternalError, ProgrammingError)) as excinfo:
+    with pytest.raises(DBAPIError) as excinfo:
         db.execute(
             text("UPDATE checkpoints SET objective = 'tampered' WHERE workflow_id = :wid"),
             {"wid": wid},
@@ -65,7 +69,7 @@ def test_checkpoints_are_immutable_at_the_database_level(client, db):
     assert "append_only_violation" in str(excinfo.value)
     db.rollback()
 
-    with pytest.raises((InternalError, ProgrammingError)):
+    with pytest.raises(DBAPIError):
         db.execute(text("DELETE FROM checkpoints WHERE workflow_id = :wid"), {"wid": wid})
         db.commit()
     db.rollback()
@@ -77,7 +81,7 @@ def test_checkpoints_are_immutable_at_the_database_level(client, db):
 def test_recovery_events_are_immutable(client, db):
     workflow = create_workflow(client)
 
-    with pytest.raises((InternalError, ProgrammingError)):
+    with pytest.raises(DBAPIError):
         db.execute(
             text("DELETE FROM recovery_events WHERE workflow_id = :wid"), {"wid": workflow["id"]}
         )

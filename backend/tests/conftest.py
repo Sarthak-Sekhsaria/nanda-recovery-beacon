@@ -73,18 +73,20 @@ def _schema() -> Iterator[None]:
         conn.execute(text(f"DROP SCHEMA IF EXISTS {TEST_SCHEMA} CASCADE"))
         conn.execute(text(f"CREATE SCHEMA {TEST_SCHEMA}"))
         conn.execute(text(f"SET search_path TO {TEST_SCHEMA}"))
+    # create_all builds every table and index declared on the models, including the
+    # partial unique index ux_claims_one_active_per_workflow. The append-only triggers
+    # are raw SQL, so they are applied separately here (mirroring the Alembic migration).
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         conn.execute(text(APPEND_ONLY_FUNCTION_SQL))
         for trigger_sql in APPEND_ONLY_TRIGGERS_SQL:
             conn.execute(text(trigger_sql))
-        # Mirrors the partial unique index created by the Alembic migration.
-        conn.execute(
-            text(
-                "CREATE UNIQUE INDEX ux_claims_one_active_per_workflow "
-                "ON claims (workflow_id) WHERE status = 'active'"
-            )
-        )
+        # The test schema is built with create_all rather than Alembic, so stamp an
+        # alembic_version row. This makes GET /ready (which checks migrations are
+        # applied) behave exactly as it does against a migrated production database.
+        conn.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num varchar(32) NOT NULL)"))
+        conn.execute(text("DELETE FROM alembic_version"))
+        conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0001')"))
     yield
     with engine.begin() as conn:
         conn.execute(text(f"DROP SCHEMA IF EXISTS {TEST_SCHEMA} CASCADE"))

@@ -176,9 +176,12 @@ def _promote_suspected(db: Session, now, limit: int) -> tuple[int, int]:
     )
     recoverable = dead = 0
     for workflow in candidates:
-        deadline = workflow.last_heartbeat_at + timedelta(
-            seconds=workflow.heartbeat_timeout_seconds + settings.suspect_grace_seconds
-        )
+        # The grace period is measured from when suspicion began (failed_at), not
+        # from the last heartbeat. So a workflow suspected in *this* sweep is never
+        # promoted in the same sweep: it gets a full grace window as suspected_failed
+        # before becoming recoverable, giving a slow-but-alive agent time to heartbeat.
+        suspected_since = workflow.failed_at or workflow.last_heartbeat_at
+        deadline = suspected_since + timedelta(seconds=settings.suspect_grace_seconds)
         if now <= deadline:
             continue
 

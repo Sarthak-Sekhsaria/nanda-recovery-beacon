@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Query, Request, Response
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentAgent, DbSession, PageParams, RequestId
 from app.api.serialize import dump, evaluation_out, workflow_out
@@ -60,14 +61,27 @@ def create_workflow(
     if replayed is not None:
         return replayed
 
-    workflow = workflow_service.create_workflow(
-        db,
-        payload=payload,
-        agent_id=agent.agent_id,
-        idempotency_key=guard.key,
-        request_id=request_id,
-    )
-    return guard.commit(201, dump(workflow_out(workflow)))
+    try:
+        workflow = workflow_service.create_workflow(
+            db,
+            payload=payload,
+            agent_id=agent.agent_id,
+            idempotency_key=guard.key,
+            request_id=request_id,
+        )
+        return guard.commit(201, dump(workflow_out(workflow)))
+    except IntegrityError:
+        # A concurrent create with the same Idempotency-Key won the race and its
+        # ux_workflows_idempotency row is already committed. Serve that workflow.
+        db.rollback()
+        replayed = guard.replay()
+        if replayed is not None:
+            return replayed
+        if guard.key:
+            existing = workflow_service.find_by_idempotency(db, agent.agent_id, guard.key)
+            if existing is not None:
+                return JSONResponse(dump(workflow_out(existing)), status_code=201)
+        raise
 
 
 @router.get(

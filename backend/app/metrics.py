@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, make_asgi_app
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 REGISTRY = CollectorRegistry(auto_describe=True)
 
@@ -102,4 +109,6 @@ reaper_last_success_timestamp = Gauge(
     registry=REGISTRY,
 )
 
-metrics_app = make_asgi_app(registry=REGISTRY)
+def render_latest() -> tuple[bytes, str]:
+    """Prometheus exposition bytes and their content type, for GET /metrics."""
+    return generate_latest(REGISTRY), CONTENT_TYPE_LATEST

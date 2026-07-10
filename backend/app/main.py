@@ -11,7 +11,7 @@ import threading
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -26,7 +26,7 @@ from app.api.v1 import artifacts, checkpoints, claims, events, workflows
 from app.config import settings
 from app.errors import BeaconError, NotFound, SchemaValidationError
 from app.logging_config import configure_logging, get_logger, log
-from app.metrics import metrics_app
+from app.metrics import render_latest
 from app.middleware import (
     BodySizeLimitMiddleware,
     RateLimitMiddleware,
@@ -197,9 +197,15 @@ app.include_router(system_router, prefix="/api/v1", include_in_schema=False)
 for module in (workflows, checkpoints, claims, artifacts, events):
     app.include_router(module.router, prefix="/api/v1")
 
-app.mount("/metrics", metrics_app)
-
 app.state.started_at = time.time()
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics_endpoint() -> Response:
+    """Prometheus exposition. No authentication. A plain route (not a mounted
+    sub-app) so it answers at exactly /metrics with no trailing-slash redirect."""
+    body, content_type = render_latest()
+    return Response(content=body, media_type=content_type)
 
 
 @app.get("/", include_in_schema=False)
