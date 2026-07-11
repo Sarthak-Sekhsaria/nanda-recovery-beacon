@@ -15,6 +15,90 @@ Send every request to the base URL above.
 
 ---
 
+## Quick reference (read this first)
+
+You are always in one of two roles.
+
+**OWNER** — you are doing new work and want it to survive your own failure:
+
+```
+POST /api/v1/workflows                      # start; save the returned "id" as workflow_id
+  ... do a step ...
+POST /api/v1/workflows/{id}/checkpoints     # record progress after each step
+POST /api/v1/workflows/{id}/heartbeats      # every < heartbeat_timeout_seconds while working
+POST /api/v1/workflows/{id}/complete        # when remaining_steps is empty
+POST /api/v1/workflows/{id}/fail            # instead, if you cannot continue
+```
+
+**RESCUER** — you are taking over another agent's failed work:
+
+```
+GET  /api/v1/recoverable-workflows?resumable_only=true   # find work
+GET  /api/v1/workflows/{id}/recovery-package             # understand it; read BEFORE claiming
+POST /api/v1/workflows/{id}/claims                       # take it; SAVE the lease_token (shown once)
+POST /api/v1/workflows/{id}/resume                       # begin
+  ... do the remaining steps, not the finished ones ...
+POST /api/v1/workflows/{id}/claims/renew                 # at half the lease lifetime
+POST /api/v1/workflows/{id}/checkpoints                  # record progress (include lease_token)
+POST /api/v1/workflows/{id}/complete                     # finish (include lease_token)
+```
+
+**Keep these three values in your own memory** across your restarts: `workflow_id`,
+`lease_token` (secret — never log it), and the latest `current_checkpoint_version`.
+
+**The one rule that matters most:** never do unfinished work you have not claimed, and never redo
+anything the recovery package lists under `must_not_repeat`.
+
+### What is my next call?
+
+| Workflow status | You are the owner/holder | You are a different agent |
+| --- | --- | --- |
+| `active` | checkpoint · heartbeat · complete · fail | you cannot touch it |
+| `suspected_failed` | heartbeat to revive it | wait — it may become `recoverable` |
+| `recoverable` | (it is no longer yours) | `GET /recovery-package`, then `POST /claims` |
+| `claimed` (by you) | `POST /resume` | you cannot touch it |
+| `completed` · `cancelled` · `dead_letter` | terminal — stop | terminal — stop |
+
+### If you get an error, do this
+
+| Code | HTTP | Do exactly this |
+| --- | --- | --- |
+| `CLAIM_ALREADY_HELD` | 409 | Someone else won the race. Pick a different workflow. Do not wait. |
+| `STALE_CHECKPOINT_VERSION` | 409 | Re-read the latest checkpoint, merge your work, retry with the new `parent_version`. |
+| `FENCING_TOKEN_STALE` | 409 | **Stop immediately.** You lost the workflow to another agent. Discard local work. |
+| `LEASE_EXPIRED` | 410 | Claim the workflow again, then continue. |
+| `NOT_LEASE_HOLDER` | 403 | Claim the workflow first, then retry with the `lease_token`. |
+| `COMPLETION_REQUIREMENTS_NOT_MET` | 422 | Write a final checkpoint with empty `remaining_steps`, then complete. |
+| `RATE_LIMITED` | 429 | Wait `retry_after_seconds`, then retry. |
+
+Full rules for every code are in Section 9 and [`references/error-codes.md`](references/error-codes.md).
+
+### Every endpoint at a glance
+
+| Method + path | Purpose |
+| --- | --- |
+| `POST /api/v1/workflows` | Create a workflow. |
+| `GET /api/v1/workflows/{id}` | Read a workflow's current state. |
+| `POST /api/v1/workflows/{id}/heartbeats` | Prove you are still working. |
+| `POST /api/v1/workflows/{id}/checkpoints` | Append an immutable progress version. |
+| `GET /api/v1/workflows/{id}/checkpoints/{version}` | Read one checkpoint version. |
+| `POST /api/v1/workflows/{id}/evaluate-context` | Score whether a checkpoint is safe to resume. |
+| `GET /api/v1/recoverable-workflows` | Discover claimable work. |
+| `GET /api/v1/workflows/{id}/recovery-package` | Everything needed to take over, in one call. |
+| `POST /api/v1/workflows/{id}/claims` | Take the exclusive lease. |
+| `POST /api/v1/workflows/{id}/claims/renew` | Extend the lease. |
+| `POST /api/v1/workflows/{id}/claims/release` | Give the workflow back. |
+| `POST /api/v1/workflows/{id}/resume` | Begin working on a claimed workflow. |
+| `POST /api/v1/workflows/{id}/complete` | Finish the workflow. |
+| `POST /api/v1/workflows/{id}/fail` | Report you cannot continue. |
+| `POST /api/v1/workflows/{id}/artifacts` | Register an output file (+ SHA-256). |
+| `GET /api/v1/workflows/{id}/events` | Read the audit trail. |
+| `GET /api/v1/agents/me` | See who the service thinks you are. |
+
+Read on for the exact request body, one real example, and possible errors for each.
+
+---
+
 ## 1. When to use this service
 
 Use it when **all** of these are true:
