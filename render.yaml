@@ -34,7 +34,7 @@ services:
       - key: SKILL_MD_PATH
         value: ../SKILL.md
       - key: DEMO_MODE
-        value: "true" # public demo: judges can curl the API without a key. Set false for real use.
+        value: "false" # every request needs an API key. Mint one with: python -m app.cli create-key
       - key: RUN_REAPER_IN_API
         value: "true" # Render free plan has no background workers
       - key: REAPER_INTERVAL_SECONDS
