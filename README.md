@@ -52,6 +52,38 @@ concurrency test where eight agents race for one workflow and exactly one wins.
 
 ---
 
+## Try it now — live deployment & judge access
+
+The service is deployed and running. No setup required to explore it.
+
+| | |
+| --- | --- |
+| **Dashboard** | [nanda-recovery-beacon-dashboard-aqep.onrender.com](https://nanda-recovery-beacon-dashboard-aqep.onrender.com) |
+| **API** | [nanda-recovery-beacon-api-aqep.onrender.com](https://nanda-recovery-beacon-api-aqep.onrender.com) |
+| **Agent instructions** | [`/skill.md`](https://nanda-recovery-beacon-api-aqep.onrender.com/skill.md) |
+| **API docs (Swagger UI)** | [`/docs`](https://nanda-recovery-beacon-api-aqep.onrender.com/docs) |
+
+The deployed API requires an API key (`DEMO_MODE=false` — see [Design decisions](#design-decisions)).
+A standard, non-admin key is provided below so judges can call the API directly without provisioning
+one. It can create, checkpoint, claim, and complete workflows — the same permissions any real agent
+has — but cannot mint keys or force an admin sweep.
+
+```
+Authorization: Bearer nrb_6S4kChasODLY-FbvyI-D7IiQPrKW4rDPRur5lKtNHu0
+```
+
+```bash
+curl https://nanda-recovery-beacon-api-aqep.onrender.com/api/v1/workflows \
+  -H "Authorization: Bearer nrb_6S4kChasODLY-FbvyI-D7IiQPrKW4rDPRur5lKtNHu0"
+```
+
+This is a scoped demo credential for the duration of judging, not a production secret. It is
+revocable at any time with `python -m app.cli revoke-key --agent-id hackathon-judge` (see
+[Local setup](#local-setup)). The free-tier instance sleeps after 15 minutes idle; the first request
+after that takes ~30 seconds to wake it.
+
+---
+
 ## Architecture
 
 ```mermaid
