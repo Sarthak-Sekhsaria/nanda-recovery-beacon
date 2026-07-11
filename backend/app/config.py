@@ -6,10 +6,18 @@ from environment variables only -- no secrets are read from files.
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+# pydantic-settings JSON-decodes list/dict env vars before field validators run, so a
+# bare value like CORS_ALLOW_ORIGINS=* would fail json.loads(). NoDecode disables that
+# decoding for these fields; the _split_csv validator below parses the raw string instead
+# (accepting both `a,b,c` and a JSON array).
+CsvList = Annotated[list[str], NoDecode]
 
 
 class Settings(BaseSettings):
@@ -60,7 +68,7 @@ class Settings(BaseSettings):
 
     # --- Context evaluation ---------------------------------------------------
     resumable_min_score: int = Field(default=50)
-    supported_checkpoint_schema_versions: list[str] = Field(default=["1.0"])
+    supported_checkpoint_schema_versions: CsvList = Field(default=["1.0"])
 
     # --- Artifacts ------------------------------------------------------------
     storage_backend: str = Field(default="none")  # none | s3
@@ -73,12 +81,12 @@ class Settings(BaseSettings):
     s3_presign_expiry_seconds: int = Field(default=900)
 
     # --- HTTP hardening -------------------------------------------------------
-    cors_allow_origins: list[str] = Field(default=["*"])
+    cors_allow_origins: CsvList = Field(default=["*"])
     max_request_bytes: int = Field(default=1024 * 1024)  # 1 MiB
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests: int = Field(default=120)
     rate_limit_window_seconds: int = Field(default=60)
-    trusted_hosts: list[str] = Field(default=["*"])
+    trusted_hosts: CsvList = Field(default=["*"])
 
     # --- Pagination -----------------------------------------------------------
     default_page_size: int = Field(default=25)
@@ -92,11 +100,15 @@ class Settings(BaseSettings):
     )
     @classmethod
     def _split_csv(cls, value: object) -> object:
-        """Allow `A,B,C` in addition to JSON arrays for list-valued env vars."""
+        """Parse list-valued env vars. Accepts `A,B,C` or a JSON array `["A","B"]`.
+
+        These fields use NoDecode, so this validator owns all string parsing --
+        pydantic-settings no longer JSON-decodes them first.
+        """
         if isinstance(value, str):
             stripped = value.strip()
             if stripped.startswith("["):
-                return value
+                return json.loads(stripped)
             return [item.strip() for item in stripped.split(",") if item.strip()]
         return value
 
